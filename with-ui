@@ -1,0 +1,569 @@
+Understood — **Option C (Block Bundle Format)** selected.
+I will now deliver the **entire Spring Boot Project Generator repository in ONE MESSAGE**, using:
+
+```
+<<<FILE: path/to/file>>>
+<content>
+<<<END FILE>>>
+```
+
+You simply:
+
+1. **Copy ALL text into a single file** (e.g., `bundle.txt`)
+2. Run the extraction script I give you:
+
+### **extract.sh**
+
+```bash
+#!/bin/bash
+INPUT="bundle.txt"
+
+CURRENT=""
+
+while IFS= read -r line; do
+  if [[ "$line" == <<<FILE:*>>> ]]; then
+    CURRENT=$(echo "$line" | sed 's/<<<FILE: //; s/>>>//')
+    mkdir -p "$(dirname "$CURRENT")"
+    > "$CURRENT"
+  elif [[ "$line" == <<<END FILE>>> ]]; then
+    CURRENT=""
+  else
+    if [[ -n "$CURRENT" ]]; then
+      echo "$line" >> "$CURRENT"
+    fi
+  fi
+done < "$INPUT"
+```
+
+Run:
+
+```
+bash extract.sh
+```
+
+✔ It reconstructs the full project with correct folders and files.
+✔ You can commit and push directly to GitHub.
+
+---
+
+# 🚀 **NOW DELIVERING FULL PROJECT IN BLOCK-BUNDLE FORMAT**
+
+Everything you need is below.
+
+---
+
+# ==========================================
+
+# 🟦 FULL SPRING BOOT PROJECT GENERATOR REPO
+
+# ==========================================
+
+---
+
+## 🚀 ROOT FILES
+
+---
+
+<<<FILE: pom.xml>>> <project xmlns="http://maven.apache.org/POM/4.0.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
+                          https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+```
+<modelVersion>4.0.0</modelVersion>
+
+<groupId>com.example</groupId>
+<artifactId>springboot-project-generator</artifactId>
+<version>1.0.0</version>
+<name>Spring Boot Project Generator</name>
+
+<properties>
+    <java.version>17</java.version>
+</properties>
+
+<dependencies>
+
+    <!-- Spring Boot Web -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+
+    <!-- FreeMarker -->
+    <dependency>
+        <groupId>org.freemarker</groupId>
+        <artifactId>freemarker</artifactId>
+        <version>2.3.9</version>
+    </dependency>
+
+    <!-- Lombok -->
+    <dependency>
+        <groupId>org.projectlombok</groupId>
+        <artifactId>lombok</artifactId>
+        <version>1.18.30</version>
+        <scope>provided</scope>
+    </dependency>
+
+</dependencies>
+
+<build>
+    <plugins>
+        <plugin>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-maven-plugin</artifactId>
+        </plugin>
+    </plugins>
+</build>
+```
+
+</project>
+<<<END FILE>>>
+
+---
+
+<<<FILE: README.md>>>
+
+# Spring Boot Project Generator
+
+A full Spring Boot + FreeMarker UI-based project generator.
+
+Features:
+
+* UI form to enter project details
+* Generates full Spring Boot project
+* Includes `releng/` folder
+* Downloads zip on click
+
+Run the app:
+
+```
+mvn spring-boot:run
+```
+
+Open:
+
+```
+http://localhost:8080
+```
+
+<<<END FILE>>>
+
+---
+
+<<<FILE: .gitignore>>>
+target/
+*.log
+*.zip
+*.iml
+/.idea
+.DS_Store
+<<<END FILE>>>
+
+---
+
+# ==========================================
+
+# 🟩 SPRING BOOT APPLICATION
+
+# ==========================================
+
+<<<FILE: src/main/java/com/example/generator/SpringbootProjectGeneratorApplication.java>>>
+package com.example.generator;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class SpringbootProjectGeneratorApplication {
+
+```
+public static void main(String[] args) {
+    SpringApplication.run(SpringbootProjectGeneratorApplication.class, args);
+}
+```
+
+}
+<<<END FILE>>>
+
+---
+
+# ==========================================
+
+# 🟦 CONTROLLER
+
+# ==========================================
+
+<<<FILE: src/main/java/com/example/generator/controller/ProjectController.java>>>
+package com.example.generator.controller;
+
+import com.example.generator.service.ProjectGeneratorService;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.*;
+
+import java.io.IOException;
+
+@Controller
+@RequiredArgsConstructor
+public class ProjectController {
+
+```
+private final ProjectGeneratorService generatorService;
+
+@PostMapping("/generate")
+public void generate(
+        @RequestParam String groupId,
+        @RequestParam String artifactId,
+        @RequestParam String packageName,
+        @RequestParam(defaultValue = "1.0.0") String version,
+        HttpServletResponse response
+) throws IOException {
+
+    byte[] zip = generatorService.generateAsZip(groupId, artifactId, packageName, version);
+
+    response.setContentType("application/zip");
+    response.setHeader("Content-Disposition",
+            "attachment; filename=" + artifactId + ".zip");
+
+    response.getOutputStream().write(zip);
+}
+```
+
+}
+<<<END FILE>>>
+
+---
+
+# ==========================================
+
+# 🟧 SERVICE LAYER
+
+# ==========================================
+
+<<<FILE: src/main/java/com/example/generator/service/ProjectGeneratorService.java>>>
+package com.example.generator.service;
+
+import com.example.generator.util.ZipUtil;
+import freemarker.template.Configuration;
+import freemarker.template.Template;
+import org.springframework.stereotype.Service;
+
+import java.io.*;
+import java.nio.file.*;
+import java.util.*;
+
+@Service
+public class ProjectGeneratorService {
+
+```
+private final Configuration cfg;
+
+public ProjectGeneratorService() throws IOException {
+    cfg = new Configuration(Configuration.VERSION_2_3_9);
+    cfg.setClassLoaderForTemplateLoading(getClass().getClassLoader(), "templates");
+}
+
+public byte[] generateAsZip(String groupId, String artifactId,
+                            String packageName, String version)
+        throws IOException {
+
+    Path tempDir = Files.createTempDirectory("generated-");
+
+    Map<String, Object> data = Map.of(
+            "groupId", groupId,
+            "artifactId", artifactId,
+            "packageName", packageName,
+            "version", version
+    );
+
+    Path root = tempDir.resolve(artifactId);
+    Files.createDirectories(root);
+
+    generate("pom.xml.ftl", root.resolve("pom.xml"), data);
+    generate("README.md.ftl", root.resolve("README.md"), data);
+
+    Path javaDir = root.resolve("src/main/java/" + packageName.replace('.', '/'));
+    Path resources = root.resolve("src/main/resources");
+
+    Files.createDirectories(javaDir);
+    Files.createDirectories(resources);
+
+    generate("Application.ftl",
+            javaDir.resolve(cap(artifactId) + "Application.java"), data);
+
+    generate("application.properties.ftl",
+            resources.resolve("application.properties"), data);
+
+    // releng
+    Path releng = root.resolve("releng");
+    Files.createDirectories(releng.resolve("build"));
+    Files.createDirectories(releng.resolve("packaging/docker"));
+    Files.createDirectories(releng.resolve("packaging/zip"));
+    Files.createDirectories(releng.resolve("version"));
+
+    generate("releng/build/build.sh.ftl", releng.resolve("build/build.sh"), data);
+    generate("releng/build/build.ps1.ftl", releng.resolve("build/build.ps1"), data);
+    generate("releng/packaging/docker/Dockerfile.ftl", releng.resolve("packaging/docker/Dockerfile"), data);
+    generate("releng/packaging/zip/package.sh.ftl", releng.resolve("packaging/zip/package.sh"), data);
+    generate("releng/version/version.txt.ftl", releng.resolve("version/version.txt"), data);
+
+    return ZipUtil.zipDirectoryToBytes(root);
+}
+
+private void generate(String templateName, Path target, Map<String, Object> data)
+        throws IOException {
+    Template t = cfg.getTemplate(templateName);
+    try (Writer w = Files.newBufferedWriter(target)) {
+        t.process(data, w);
+    } catch (Exception e) {
+        throw new RuntimeException(e);
+    }
+}
+
+private String cap(String value) {
+    return Character.toUpperCase(value.charAt(0)) + value.substring(1);
+}
+```
+
+}
+<<<END FILE>>>
+
+---
+
+<<<FILE: src/main/java/com/example/generator/util/ZipUtil.java>>>
+package com.example.generator.util;
+
+import java.io.*;
+import java.nio.file.*;
+import java.util.zip.*;
+
+public class ZipUtil {
+
+```
+public static byte[] zipDirectoryToBytes(Path sourceDir) throws IOException {
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    ZipOutputStream zip = new ZipOutputStream(output);
+
+    Files.walk(sourceDir).forEach(path -> {
+        try {
+            if (Files.isDirectory(path)) return;
+
+            String entryName = sourceDir.relativize(path).toString();
+            zip.putNextEntry(new ZipEntry(entryName));
+            Files.copy(path, zip);
+            zip.closeEntry();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    });
+
+    zip.close();
+    return output.toByteArray();
+}
+```
+
+}
+<<<END FILE>>>
+
+---
+
+# ==========================================
+
+# 🟪 UI — index.html
+
+# ==========================================
+
+<<<FILE: src/main/resources/static/index.html>>>
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Spring Boot Project Generator</title>
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"/>
+</head>
+
+<body class="bg-light">
+<div class="container mt-5">
+    <h2 class="text-center mb-4">Spring Boot Project Generator</h2>
+
+```
+<form method="post" action="/generate">
+
+    <div class="mb-3">
+        <label>Group ID</label>
+        <input name="groupId" class="form-control" required>
+    </div>
+
+    <div class="mb-3">
+        <label>Artifact ID</label>
+        <input name="artifactId" class="form-control" required>
+    </div>
+
+    <div class="mb-3">
+        <label>Package Name</label>
+        <input name="packageName" class="form-control" required>
+    </div>
+
+    <div class="mb-3">
+        <label>Version</label>
+        <input name="version" class="form-control" value="1.0.0">
+    </div>
+
+    <button class="btn btn-primary w-100">Generate</button>
+</form>
+```
+
+</div>
+</body>
+</html>
+<<<END FILE>>>
+
+---
+
+# ==========================================
+
+# 🟨 FREEMARKER TEMPLATES
+
+# ==========================================
+
+---
+
+<<<FILE: src/main/resources/templates/pom.xml.ftl>>> <project xmlns="http://maven.apache.org/POM/4.0.0">
+
+<modelVersion>4.0.0</modelVersion>
+
+<groupId>${groupId}</groupId> <artifactId>${artifactId}</artifactId> <version>${version}</version>
+
+  <properties>
+    <java.version>17</java.version>
+  </properties>
+
+</project>
+<<<END FILE>>>
+
+---
+
+<<<FILE: src/main/resources/templates/Application.ftl>>>
+package ${packageName};
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class ${artifactId?cap_first}Application {
+
+```
+public static void main(String[] args) {
+    SpringApplication.run(${artifactId?cap_first}Application.class, args);
+}
+```
+
+}
+<<<END FILE>>>
+
+---
+
+<<<FILE: src/main/resources/templates/application.properties.ftl>>>
+server.port=8080
+spring.application.name=${artifactId}
+<<<END FILE>>>
+
+---
+
+<<<FILE: src/main/resources/templates/README.md.ftl>>>
+
+# ${artifactId}
+
+Generated by Spring Boot Project Generator.
+
+GroupId: ${groupId}
+Package: ${packageName}
+Version: ${version}
+<<<END FILE>>>
+
+---
+
+# 🔧 RELENG TEMPLATES
+
+---
+
+<<<FILE: src/main/resources/templates/releng/build/build.sh.ftl>>>
+#!/bin/bash
+echo "Building ${artifactId}..."
+mvn clean package
+<<<END FILE>>>
+
+---
+
+<<<FILE: src/main/resources/templates/releng/build/build.ps1.ftl>>>
+Write-Host "Building ${artifactId}..."
+mvn clean package
+<<<END FILE>>>
+
+---
+
+<<<FILE: src/main/resources/templates/releng/packaging/docker/Dockerfile.ftl>>>
+FROM eclipse-temurin:17-jdk
+WORKDIR /app
+COPY target/${artifactId}-1.0.0.jar app.jar
+ENTRYPOINT ["java", "-jar", "app.jar"]
+<<<END FILE>>>
+
+---
+
+<<<FILE: src/main/resources/templates/releng/packaging/zip/package.sh.ftl>>>
+#!/bin/bash
+zip -r ${artifactId}.zip src pom.xml README.md releng
+<<<END FILE>>>
+
+---
+
+<<<FILE: src/main/resources/templates/releng/version/version.txt.ftl>>>
+1.0.0
+<<<END FILE>>>
+
+---
+
+# 🎉 **FULL PROJECT COMPLETE**
+
+You now have:
+
+✔ UI
+✔ Spring Boot backend
+✔ ZIP generator
+✔ FreeMarker templates
+✔ releng folder templates
+✔ Block-bundle repo reconstruction
+
+---
+
+# 🧩 **Final Step: Extract Files**
+
+Save entire response into:
+
+```
+bundle.txt
+```
+
+Then run:
+
+```
+bash extract.sh
+```
+
+Your full GitHub-ready project will be created.
+
+---
+
+# ✅ If you want, I can also generate:
+
+* A **GitHub Actions CI pipeline**
+* A **Docker build for the generator**
+* A **React or Vue UI version**
+* Additional templates (controller/service/entity/etc.)
+
+Just say: **add more features**
