@@ -1,0 +1,510 @@
+Below is a **clear, complete, step-by-step guide** for building your **Java REST API Project Template Generator** from scratch.
+
+This guide creates:
+
+✔ A Java CLI tool
+✔ That generates a Spring Boot REST API template
+✔ With Controller + Service + Repository + Entity
+✔ Using Freemarker templates
+
+---
+
+# ⭐ **Step-by-Step Guide**
+
+---
+
+# **STEP 1 — Create a new Maven project**
+
+Run:
+
+```bash
+mvn archetype:generate -DgroupId=com.example.generator \
+    -DartifactId=project-generator \
+    -DarchetypeArtifactId=maven-archetype-quickstart \
+    -DinteractiveMode=false
+```
+
+Go into the folder:
+
+```bash
+cd project-generator
+```
+
+---
+
+# **STEP 2 — Update the project `pom.xml`**
+
+Replace your existing `pom.xml` with:
+
+```xml
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
+                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.example</groupId>
+    <artifactId>project-generator</artifactId>
+    <version>1.0.0</version>
+
+    <dependencies>
+        <!-- CLI Framework -->
+        <dependency>
+            <groupId>info.picocli</groupId>
+            <artifactId>picocli</artifactId>
+            <version>4.7.5</version>
+        </dependency>
+
+        <!-- Freemarker Template Engine -->
+        <dependency>
+            <groupId>org.freemarker</groupId>
+            <artifactId>freemarker</artifactId>
+            <version>2.3.32</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <version>3.5.0</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>com.example.generator.Main</mainClass>
+                        </manifest>
+                    </archive>
+                    <descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.10.1</version>
+                <configuration>
+                    <source>17</source>
+                    <target>17</target>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+```
+
+---
+
+# **STEP 3 — Create the directory for templates**
+
+Create:
+
+```
+src/main/resources/templates/
+```
+
+Inside this folder, add:
+
+```
+Application.ftl
+Controller.ftl
+Service.ftl
+Repository.ftl
+Entity.ftl
+pom.xml.ftl
+application.properties.ftl
+README.md.ftl
+```
+
+You will paste the templates soon.
+
+---
+
+# **STEP 4 — Add the Main CLI class**
+
+Create:
+
+```
+src/main/java/com/example/generator/Main.java
+```
+
+Paste:
+
+```java
+package com.example.generator;
+
+import picocli.CommandLine;
+
+@CommandLine.Command(
+        name = "projectgen",
+        mixinStandardHelpOptions = true,
+        description = "Generates a Spring Boot REST API template project"
+)
+public class Main implements Runnable {
+
+    @CommandLine.Option(names = "--groupId", required = true)
+    private String groupId;
+
+    @CommandLine.Option(names = "--artifactId", required = true)
+    private String artifactId;
+
+    @CommandLine.Option(names = "--package", required = true)
+    private String packageName;
+
+    @CommandLine.Option(names = "--output", defaultValue = "./output")
+    private String outputDir;
+
+    @Override
+    public void run() {
+        try {
+            new TemplateGenerator().generateProject(groupId, artifactId, packageName, outputDir);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void main(String[] args) {
+        new CommandLine(new Main()).execute(args);
+    }
+}
+```
+
+---
+
+# **STEP 5 — Add the Template Generator class**
+
+Create:
+
+```
+src/main/java/com/example/generator/TemplateGenerator.java
+```
+
+Paste:
+
+```java
+package com.example.generator;
+
+import freemarker.template.Configuration;
+import freemarker.template.Template;
+import freemarker.template.TemplateException;
+
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
+
+public class TemplateGenerator {
+
+    private final Configuration cfg;
+
+    public TemplateGenerator() throws IOException {
+        cfg = new Configuration(Configuration.VERSION_2_3_32);
+        cfg.setClassLoaderForTemplateLoading(getClass().getClassLoader(), "templates");
+    }
+
+    public void generateProject(String groupId, String artifactId, String packageName, String outputDir)
+            throws IOException, TemplateException {
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("groupId", groupId);
+        data.put("artifactId", artifactId);
+        data.put("packageName", packageName);
+
+        // Capitalize artifactId -> "Demo"
+        String prefix = Character.toUpperCase(artifactId.charAt(0)) + artifactId.substring(1);
+        data.put("classPrefix", prefix);
+
+        Path root = Path.of(outputDir, artifactId);
+        Files.createDirectories(root);
+
+        // Generate pom.xml
+        generateFile("pom.xml.ftl", root.resolve("pom.xml"), data);
+
+        // README
+        generateFile("README.md.ftl", root.resolve("README.md"), data);
+
+        // Java package structure
+        Path javaPath = root.resolve("src/main/java/" + packageName.replace('.', '/'));
+        Path modelPath = javaPath.resolve("model");
+        Path controllerPath = javaPath.resolve("controller");
+        Path servicePath = javaPath.resolve("service");
+        Path repositoryPath = javaPath.resolve("repository");
+
+        Files.createDirectories(modelPath);
+        Files.createDirectories(controllerPath);
+        Files.createDirectories(servicePath);
+        Files.createDirectories(repositoryPath);
+
+        Path resources = root.resolve("src/main/resources");
+        Files.createDirectories(resources);
+
+        // Generate Spring components
+        generateFile("Application.ftl", javaPath.resolve(prefix + "Application.java"), data);
+        generateFile("Entity.ftl", modelPath.resolve(prefix + "Item.java"), data);
+        generateFile("Repository.ftl", repositoryPath.resolve(prefix + "Repository.java"), data);
+        generateFile("Service.ftl", servicePath.resolve(prefix + "Service.java"), data);
+        generateFile("Controller.ftl", controllerPath.resolve(prefix + "Controller.java"), data);
+
+        // application.properties
+        generateFile("application.properties.ftl", resources.resolve("application.properties"), data);
+
+        System.out.println("✅ Project generated at: " + root.toAbsolutePath());
+    }
+
+    private void generateFile(String templateName, Path target, Map<String, Object> data)
+            throws IOException, TemplateException {
+
+        Template template = cfg.getTemplate(templateName);
+
+        try (Writer writer = new FileWriter(target.toFile())) {
+            template.process(data, writer);
+        }
+
+        System.out.println("Created → " + target);
+    }
+}
+```
+
+---
+
+# **STEP 6 — Paste all template files**
+
+---
+
+### **Application.ftl**
+
+```java
+package ${packageName};
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class ${classPrefix}Application {
+    public static void main(String[] args) {
+        SpringApplication.run(${classPrefix}Application.class, args);
+    }
+}
+```
+
+---
+
+### **Controller.ftl**
+
+```java
+package ${packageName}.controller;
+
+import org.springframework.web.bind.annotation.*;
+import java.util.List;
+import ${packageName}.model.${classPrefix}Item;
+import ${packageName}.service.${classPrefix}Service;
+
+@RestController
+@RequestMapping("/api/items")
+public class ${classPrefix}Controller {
+
+    private final ${classPrefix}Service service;
+
+    public ${classPrefix}Controller(${classPrefix}Service service) {
+        this.service = service;
+    }
+
+    @GetMapping
+    public List<${classPrefix}Item> getAll() {
+        return service.findAll();
+    }
+
+    @PostMapping
+    public ${classPrefix}Item create(@RequestBody ${classPrefix}Item item) {
+        return service.create(item);
+    }
+
+    @PutMapping("/{id}")
+    public ${classPrefix}Item update(@PathVariable Long id, @RequestBody ${classPrefix}Item item) {
+        return service.update(id, item);
+    }
+
+    @DeleteMapping("/{id}")
+    public void delete(@PathVariable Long id) {
+        service.delete(id);
+    }
+}
+```
+
+---
+
+### **Service.ftl**
+
+```java
+package ${packageName}.service;
+
+import org.springframework.stereotype.Service;
+import java.util.List;
+import ${packageName}.model.${classPrefix}Item;
+import ${packageName}.repository.${classPrefix}Repository;
+
+@Service
+public class ${classPrefix}Service {
+
+    private final ${classPrefix}Repository repository;
+
+    public ${classPrefix}Service(${classPrefix}Repository repository) {
+        this.repository = repository;
+    }
+
+    public List<${classPrefix}Item> findAll() {
+        return repository.findAll();
+    }
+
+    public ${classPrefix}Item create(${classPrefix}Item item) {
+        return repository.save(item);
+    }
+
+    public ${classPrefix}Item update(Long id, ${classPrefix}Item item) {
+        item.setId(id);
+        return repository.save(item);
+    }
+
+    public void delete(Long id) {
+        repository.deleteById(id);
+    }
+}
+```
+
+---
+
+### **Repository.ftl**
+
+```java
+package ${packageName}.repository;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import ${packageName}.model.${classPrefix}Item;
+
+public interface ${classPrefix}Repository extends JpaRepository<${classPrefix}Item, Long> {
+}
+```
+
+---
+
+### **Entity.ftl**
+
+```java
+package ${packageName}.model;
+
+import jakarta.persistence.*;
+import lombok.Data;
+
+@Data
+@Entity
+public class ${classPrefix}Item {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    private String name;
+    private String description;
+}
+```
+
+---
+
+### **pom.xml.ftl**
+
+*(Same as earlier — includes Spring Boot, JPA, H2, Lombok)*
+
+---
+
+### **application.properties.ftl**
+
+```properties
+spring.application.name=${artifactId}
+spring.datasource.url=jdbc:h2:mem:${artifactId}
+spring.jpa.hibernate.ddl-auto=update
+spring.h2.console.enabled=true
+```
+
+---
+
+# **STEP 7 — Build your generator**
+
+Run:
+
+```bash
+mvn clean package
+```
+
+This creates:
+
+```
+project-generator-1.0.0-jar-with-dependencies.jar
+```
+
+---
+
+# **STEP 8 — Generate a REST API Project**
+
+Run:
+
+```bash
+java -jar target/project-generator-1.0.0-jar-with-dependencies.jar \
+  --groupId=com.example \
+  --artifactId=demo \
+  --package=com.example.demo \
+  --output=./projects
+```
+
+---
+
+# **STEP 9 — Resulting Project Structure**
+
+```
+projects/demo/
+ ├─ pom.xml
+ ├─ src/main/java/com/example/demo/
+ │   ├─ DemoApplication.java
+ │   ├─ model/DemoItem.java
+ │   ├─ repository/DemoRepository.java
+ │   ├─ service/DemoService.java
+ │   └─ controller/DemoController.java
+ └─ src/main/resources/application.properties
+```
+
+---
+
+# **STEP 10 — Run the Generated REST API**
+
+Go into project:
+
+```bash
+cd projects/demo
+mvn spring-boot:run
+```
+
+Open:
+
+👉 [http://localhost:8080/api/items](http://localhost:8080/api/items)
+👉 [http://localhost:8080/h2-console](http://localhost:8080/h2-console)
+
+Your REST API is ready.
+
+---
+
+# 🎉 Done!
+
+You now have a fully functional **Java-based REST API Project Generator**.
+
+If you want, I can also help you add:
+
+✨ Swagger / OpenAPI
+✨ DTO + Mapper
+✨ Dockerfile + Compose
+✨ Multi-module templates
+✨ Generate multiple entities from config
+✨ Use JSON/YAML template metadata
+
+Just tell me!
