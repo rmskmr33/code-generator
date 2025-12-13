@@ -1,15 +1,68 @@
 <!DOCTYPE html>
 <html>
+<head>
+    <meta charset="UTF-8">
+    <title>Generate MyApp</title>
+    <script>
+        function checkFormValidity() {
+            const form = document.getElementById("myAppForm");
+            const button = document.getElementById("generateBtn");
+            button.disabled = !form.checkValidity();
+        }
+
+        function enforceLowercase(el) {
+            el.value = el.value.toLowerCase();
+        }
+    </script>
+</head>
+
 <body>
 
 <h2>Generate MyApp Only</h2>
 
-<form method="post" action="/generate-myapp">
-    <input name="groupId" placeholder="groupId" required><br>
-    <input name="artifactId" placeholder="artifactId" required><br>
-    <input name="packageName" placeholder="packageName" required><br>
-    <input name="version" value="1.0.0"><br>
-    <button>Download MyApp</button>
+<form id="myAppForm"
+      method="post"
+      action="/generate-myapp"
+      oninput="checkFormValidity()">
+
+    <label>App ID</label><br>
+    <input name="appid"
+           placeholder="AP000000"
+           pattern="AP[0-9]{6}"
+           title="App ID must start with AP followed by exactly 6 digits"
+           required>
+    <br><br>
+
+    <label>Group ID</label><br>
+    <input name="groupId"
+           placeholder="com.example"
+           required>
+    <br><br>
+
+    <label>Artifact ID</label><br>
+    <input name="artifactId"
+           placeholder="my-app"
+           pattern="[a-z0-9-]+"
+           title="Artifact ID must contain only lowercase letters, numbers, and hyphens"
+           oninput="enforceLowercase(this)"
+           required>
+    <br><br>
+
+    <label>Package Name</label><br>
+    <input name="packageName"
+           placeholder="com.example.myapp"
+           required>
+    <br><br>
+
+    <label>Version</label><br>
+    <input name="version"
+           value="1.0.0"
+           required>
+    <br><br>
+
+    <button id="generateBtn" disabled>
+        Download MyApp
+    </button>
 </form>
 
 </body>
