@@ -1,0 +1,210 @@
+CREATE TABLE USERS (
+    USER_ID    RAW NOT NULL,
+    FIRST_NAME VARCHAR2(100) NOT NULL,
+    LAST_NAME  VARCHAR2(100) NOT NULL,
+    EMAIL_ID   VARCHAR2(150) NOT NULL,
+    CONSTRAINT USERS_PK PRIMARY KEY (USER_ID),
+    CONSTRAINT USERS_EMAIL_UK UNIQUE (EMAIL_ID)
+);
+
+2️⃣ Entity (UserEntity)
+✅ Hibernate 6 / Spring Boot 3+
+package com.example.demo.entity;
+
+import jakarta.persistence.*;
+import org.hibernate.annotations.UuidGenerator;
+
+import java.util.UUID;
+
+@Entity
+@Table(name = "USERS")
+public class UserEntity {
+
+    @Id
+    @GeneratedValue
+    @UuidGenerator
+    @Column(name = "USER_ID", columnDefinition = "RAW(16)", updatable = false, nullable = false)
+    private UUID userId;
+
+    @Column(name = "FIRST_NAME", nullable = false)
+    private String firstName;
+
+    @Column(name = "LAST_NAME", nullable = false)
+    private String lastName;
+
+    @Column(name = "EMAIL_ID", nullable = false, unique = true)
+    private String emailId;
+
+    // getters & setters
+    public UUID getUserId() { return userId; }
+    public void setUserId(UUID userId) { this.userId = userId; }
+
+    public String getFirstName() { return firstName; }
+    public void setFirstName(String firstName) { this.firstName = firstName; }
+
+    public String getLastName() { return lastName; }
+    public void setLastName(String lastName) { this.lastName = lastName; }
+
+    public String getEmailId() { return emailId; }
+    public void setEmailId(String emailId) { this.emailId = emailId; }
+}
+
+3️⃣ Repository
+package com.example.demo.repository;
+
+import com.example.demo.entity.UserEntity;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.UUID;
+
+public interface UserRepository extends JpaRepository<UserEntity, UUID> {
+}
+
+4️⃣ DTO (Request / Response)
+package com.example.demo.dto;
+
+public class UserRequest {
+
+    private String firstName;
+    private String lastName;
+    private String emailId;
+
+    // getters & setters
+    public String getFirstName() { return firstName; }
+    public void setFirstName(String firstName) { this.firstName = firstName; }
+
+    public String getLastName() { return lastName; }
+    public void setLastName(String lastName) { this.lastName = lastName; }
+
+    public String getEmailId() { return emailId; }
+    public void setEmailId(String emailId) { this.emailId = emailId; }
+}
+
+5️⃣ Service Layer
+package com.example.demo.service;
+
+import com.example.demo.dto.UserRequest;
+import com.example.demo.entity.UserEntity;
+import com.example.demo.repository.UserRepository;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.UUID;
+
+@Service
+public class UserService {
+
+    private final UserRepository repository;
+
+    public UserService(UserRepository repository) {
+        this.repository = repository;
+    }
+
+    // CREATE
+    public UserEntity createUser(UserRequest request) {
+        UserEntity user = new UserEntity();
+        user.setFirstName(request.getFirstName());
+        user.setLastName(request.getLastName());
+        user.setEmailId(request.getEmailId());
+        return repository.save(user);
+    }
+
+    // READ ALL
+    public List<UserEntity> getAllUsers() {
+        return repository.findAll();
+    }
+
+    // READ BY ID
+    public UserEntity getUserById(UUID id) {
+        return repository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    // UPDATE
+    public UserEntity updateUser(UUID id, UserRequest request) {
+        UserEntity user = getUserById(id);
+        user.setFirstName(request.getFirstName());
+        user.setLastName(request.getLastName());
+        user.setEmailId(request.getEmailId());
+        return repository.save(user);
+    }
+
+    // DELETE
+    public void deleteUser(UUID id) {
+        repository.deleteById(id);
+    }
+}
+
+6️⃣ REST Controller
+package com.example.demo.controller;
+
+import com.example.demo.dto.UserRequest;
+import com.example.demo.entity.UserEntity;
+import com.example.demo.service.UserService;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/users")
+public class UserController {
+
+    private final UserService service;
+
+    public UserController(UserService service) {
+        this.service = service;
+    }
+
+    // POST - Create
+    @PostMapping
+    public UserEntity create(@RequestBody UserRequest request) {
+        return service.createUser(request);
+    }
+
+    // GET - All
+    @GetMapping
+    public List<UserEntity> getAll() {
+        return service.getAllUsers();
+    }
+
+    // GET - By ID
+    @GetMapping("/{id}")
+    public UserEntity getById(@PathVariable UUID id) {
+        return service.getUserById(id);
+    }
+
+    // PUT - Update
+    @PutMapping("/{id}")
+    public UserEntity update(
+            @PathVariable UUID id,
+            @RequestBody UserRequest request) {
+        return service.updateUser(id, request);
+    }
+
+    // DELETE
+    @DeleteMapping("/{id}")
+    public void delete(@PathVariable UUID id) {
+        service.deleteUser(id);
+    }
+}
+
+7️⃣ Example API Calls
+▶ POST
+POST /api/users
+Content-Type: application/json
+
+{
+  "firstName": "John",
+  "lastName": "Doe",
+  "emailId": "john.doe@test.com"
+}
+
+▶ GET
+GET /api/users
+
+▶ PUT
+PUT /api/users/{uuid}
+
+▶ DELETE
+DELETE /api/users/{uuid}
