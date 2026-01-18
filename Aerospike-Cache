@@ -48,4 +48,17 @@ public void saveJwtToken(String tokenKey, String jwtToken, int ttlSeconds) {
         );
     }
 }
+
+public int getRemainingTokenTTL(String tokenKey) {
+
+    Key key = new Key(namespace, "jwt_tokens", tokenKey);
+
+    Record record = client.get(null, key);
+
+    if (record == null) {
+        return -1; // token not found or already expired
+    }
+
+    return record.getTimeToLive(); // seconds remaining
+}
 4. Controller Exa
