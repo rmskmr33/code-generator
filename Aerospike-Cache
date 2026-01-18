@@ -1,0 +1,51 @@
+public void saveJwtToken(String tokenKey, String jwtToken, int ttlSeconds) {
+
+        Key key = new Key(namespace, "jwt_tokens", tokenKey);
+
+        WritePolicy policy = new WritePolicy();
+        policy.expiration = ttlSeconds;
+
+        client.put(policy, key, new Bin("token", jwtToken));
+    }
+
+    public String getJwtToken(String tokenKey) {
+
+        Key key = new Key(namespace, "jwt_tokens", tokenKey);
+        Record record = client.get(null, key);
+
+        return record == null ? null : record.getString("token");
+    }
+
+    /* ---------------- USER ENTITLEMENT ---------------- */
+
+    public void saveUserEntitlement(
+            String userId,
+            UserEntitlement entitlement,
+            int ttlSeconds) throws Exception {
+
+        Key key = new Key(namespace, "user_entitlements", userId);
+
+        WritePolicy policy = new WritePolicy();
+        policy.expiration = ttlSeconds;
+
+        String json = objectMapper.writeValueAsString(entitlement);
+
+        client.put(policy, key, new Bin("entitlement", json));
+    }
+
+    public UserEntitlement getUserEntitlement(String userId) throws Exception {
+
+        Key key = new Key(namespace, "user_entitlements", userId);
+        Record record = client.get(null, key);
+
+        if (record == null) {
+            return null;
+        }
+
+        return objectMapper.readValue(
+                record.getString("entitlement"),
+                UserEntitlement.class
+        );
+    }
+}
+4. Controller Exa
